@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/app_theme.dart';
 import '../../services/sound_service.dart';
+import '../../services/zambian_language_data.dart';
 import './widgets/lesson_answer_options_widget.dart';
 import './widgets/lesson_check_button_widget.dart';
 import './widgets/lesson_exercise_widget.dart';
@@ -29,10 +31,14 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
   bool _isCorrect = false;
   bool _showFeedback = false;
   bool _showCelebration = false;
+  bool _showComboOverlay = false;
+  bool _showGemDrop = false;
   int _hearts = 5;
   final int _streakCount = 7;
   int _xpEarned = 0;
   bool _isSlangMode = false;
+  int _comboCount = 0; // consecutive correct answers
+  int _totalGems = 0;
 
   late AnimationController _feedbackController;
   late Animation<double> _feedbackSlide;
@@ -40,107 +46,43 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
   late Animation<double> _mascotBounce;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnim;
+  late AnimationController _xpCounterController;
+  late Animation<double> _xpCounterAnim;
+  late AnimationController _comboController;
+  late Animation<double> _comboScale;
+  late AnimationController _gemDropController;
+  late Animation<double> _gemDropAnim;
+  late AnimationController _progressController;
+  late Animation<double> _progressAnim;
 
   final _sound = SoundService();
 
-  // Rich exercise data with multiple types
-  static const List<Map<String, dynamic>> _exercisesMaps = [
-    {
-      'type': 'multiple_choice',
-      'instruction': 'Translate to Bemba',
-      'question': 'Hello, how are you?',
-      'correct_answer': 'Muli shani?',
-      'options': ['Muli shani?', 'Muli bwanji?', 'Nuli bwino?', 'Natotela?'],
-      'cultural_note':
-          'In Bemba culture, greetings show respect and build connection. "Muli shani?" is the standard greeting among equals.',
-      'xp_reward': 10,
-      'perfect_bonus': 5,
-      'is_slang': false,
-    },
-    {
-      'type': 'complete_the_chat',
-      'instruction': 'Complete the chat',
-      'mascot_message': 'Muli shani, mukwai? Mwabuka bwino?',
-      'question': 'Zam-Eagle greets you in the morning. How do you reply?',
-      'correct_answer': 'Nili bwino, natotela! Mwabuka bwino?',
-      'options': [
-        'Nili bwino, natotela! Mwabuka bwino?',
-        'Twende ku market lelo.',
-        'Nshikwete ndalama.',
-      ],
-      'cultural_note':
-          'Responding to a morning greeting with "Mwabuka bwino?" (Did you wake up well?) shows you care about the other person\'s wellbeing — a key Bemba cultural value.',
-      'xp_reward': 15,
-      'perfect_bonus': 7,
-      'is_slang': false,
-    },
-    {
-      'type': 'tap_the_word',
-      'instruction': 'Arrange the words',
-      'question': 'Build the Bemba sentence for: "I want to go to the market"',
-      'correct_answer': 'Nfuna ukwenda ku market',
-      'word_bank': ['Nfuna', 'ukwenda', 'ku', 'market', 'ndalama', 'bwino'],
-      'options': [],
-      'cultural_note':
-          '"Nfuna" means "I want" in Bemba. Markets (amasoko) are the heart of Zambian community life — from Soweto Market in Lusaka to Chisokone in Kitwe.',
-      'xp_reward': 12,
-      'perfect_bonus': 6,
-      'is_slang': false,
-    },
-    {
-      'type': 'listen_and_pick',
-      'instruction': 'Listen and pick',
-      'question': 'What does this Bemba phrase mean?',
-      'audio_text': 'Natotela sana, mukwai',
-      'correct_answer': 'Thank you very much, sir/madam',
-      'options': [
-        'Thank you very much, sir/madam',
-        'Good morning, how are you?',
-        'I am going to the market',
-        'Please help me',
-      ],
-      'cultural_note':
-          '"Mukwai" is a respectful address used for elders and strangers in Bemba. Always use it when speaking to someone older than you.',
-      'xp_reward': 12,
-      'perfect_bonus': 6,
-      'is_slang': false,
-    },
-    {
-      'type': 'multiple_choice',
-      'instruction': 'Kopala Street Slang — Translate',
-      'question': 'What\'s up, friend?',
-      'correct_answer': 'Bonde, chalo?',
-      'options': [
-        'Bonde, chalo?',
-        'Muli shani, mukwai?',
-        'Twende amapano',
-        'Nili bwino',
-      ],
-      'cultural_note':
-          '"Bonde" is Kopala slang for "friend/bro". "Chalo" means "dude/guy" in Copperbelt street language. This is how youth greet on the streets of Kitwe.',
-      'xp_reward': 15,
-      'perfect_bonus': 7,
-      'is_slang': true,
-    },
-    {
-      'type': 'complete_the_chat',
-      'instruction': 'Complete the chat',
-      'mascot_message': 'Bonde! Uya kuti lelo?',
-      'question':
-          'Your friend asks where you\'re going. Reply in Kopala slang.',
-      'correct_answer': 'Naya ku chisokone, tukopele!',
-      'options': [
-        'Naya ku chisokone, tukopele!',
-        'Nili ku sukulu lelo.',
-        'Muli shani, mukwai?',
-      ],
-      'cultural_note':
-          '"Tukopele" is Kopala slang meaning "let\'s go/let\'s hustle". Chisokone Market in Kitwe is the biggest market on the Copperbelt.',
-      'xp_reward': 15,
-      'perfect_bonus': 7,
-      'is_slang': true,
-    },
-  ];
+  // Use rich exercise data from ZambianLanguageData
+  static final List<Map<String, dynamic>> _exercisesMaps = () {
+    final bemba = ZambianLanguageData.languages.firstWhere(
+      (l) => l.code == 'bemba',
+    );
+    final unit1 = bemba.units.first;
+    final lesson1 = unit1.lessons.first;
+    return lesson1.exercises
+        .map(
+          (e) => {
+            'type': e.type,
+            'instruction': e.instruction,
+            'question': e.question,
+            'correct_answer': e.correctAnswer,
+            'options': e.options,
+            'cultural_note': e.culturalNote ?? '',
+            'audio_text': e.audioText ?? '',
+            'mascot_message': e.mascotMessage ?? '',
+            'word_bank': e.wordBank ?? <String>[],
+            'xp_reward': e.xpReward,
+            'perfect_bonus': 5,
+            'is_slang': false,
+          },
+        )
+        .toList();
+  }();
 
   double get _progressValue =>
       (_currentExerciseIndex + 1) / _exercisesMaps.length;
@@ -172,6 +114,35 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
     _shakeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticOut),
     );
+    _xpCounterController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _xpCounterAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _xpCounterController, curve: Curves.easeOutCubic),
+    );
+    _comboController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _comboScale = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _comboController, curve: Curves.elasticOut),
+    );
+    _gemDropController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _gemDropAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _gemDropController, curve: Curves.easeOutCubic),
+    );
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _progressAnim = Tween<double>(begin: 0, end: _progressValue).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeOutCubic),
+    );
+    _progressController.forward();
   }
 
   @override
@@ -179,11 +150,16 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
     _feedbackController.dispose();
     _mascotController.dispose();
     _shakeController.dispose();
+    _xpCounterController.dispose();
+    _comboController.dispose();
+    _gemDropController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
   void _onAnswerSelected(String answer) {
     if (_hasChecked) return;
+    HapticFeedback.selectionClick();
     setState(() => _selectedAnswer = answer);
     _sound.playTap();
   }
@@ -200,14 +176,37 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
       if (correct) {
         _xpEarned += (exercise['xp_reward'] as int);
         _showCelebration = true;
+        _comboCount++;
+
+        // Surprise gem drop on every 2nd correct answer
+        if (_comboCount % 2 == 0) {
+          _totalGems += 5;
+          _showGemDrop = true;
+          _gemDropController.forward(from: 0);
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) setState(() => _showGemDrop = false);
+          });
+        }
+
+        // "You're on fire!" combo at 3+ correct in a row
+        if (_comboCount >= 3) {
+          _showComboOverlay = true;
+          _comboController.forward(from: 0);
+          HapticFeedback.heavyImpact();
+          Future.delayed(const Duration(milliseconds: 2000), () {
+            if (mounted) setState(() => _showComboOverlay = false);
+          });
+        }
       } else {
         if (_hearts > 0) _hearts--;
+        _comboCount = 0; // reset combo on wrong answer
       }
     });
 
     if (correct) {
       _sound.playCorrect();
       _mascotController.forward(from: 0);
+      _xpCounterController.forward(from: 0);
       Future.delayed(const Duration(milliseconds: 1800), () {
         if (mounted) setState(() => _showCelebration = false);
       });
@@ -222,6 +221,17 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
   void _onContinue() {
     _feedbackController.reset();
     if (_currentExerciseIndex < _exercisesMaps.length - 1) {
+      // Animate progress bar
+      final nextProgress = (_currentExerciseIndex + 2) / _exercisesMaps.length;
+      _progressAnim = Tween<double>(begin: _progressValue, end: nextProgress)
+          .animate(
+            CurvedAnimation(
+              parent: _progressController,
+              curve: Curves.easeOutCubic,
+            ),
+          );
+      _progressController.forward(from: 0);
+
       setState(() {
         _currentExerciseIndex++;
         _selectedAnswer = null;
@@ -242,44 +252,76 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
       barrierDismissible: false,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1A2E1A), Color(0xFF0D1A0D)],
+            ),
+          ),
           padding: const EdgeInsets.all(28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🦅', style: TextStyle(fontSize: 56)),
-              const SizedBox(height: 12),
-              Text(
-                'Lesson Complete!',
-                style: GoogleFonts.nunitoSans(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.zambiaBlack,
+              // Animated medal
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) =>
+                    Transform.scale(scale: value, child: child),
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFFFB800).withAlpha(30),
+                    border: Border.all(
+                      color: const Color(0xFFFFB800),
+                      width: 3,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text('🏅', style: TextStyle(fontSize: 52)),
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+              Text(
+                'Lesson Complete! 🎉',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 6),
               Text(
                 'Mwabomba bwino! (Well done!)',
-                style: GoogleFonts.nunitoSans(
-                  fontSize: 15,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF6B6B6B),
+                  color: Colors.white60,
                 ),
               ),
               const SizedBox(height: 20),
+              // Stats row
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withAlpha(20),
+                  color: AppTheme.primary.withAlpha(30),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.primary.withAlpha(60)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _StatChip(
-                      label: 'MaKopala',
+                      label: 'XP Earned',
                       value: '+$_xpEarned',
-                      emoji: '🪙',
+                      emoji: '⭐',
                     ),
                     _StatChip(
                       label: 'Hearts',
@@ -287,38 +329,91 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
                       emoji: '❤️',
                     ),
                     _StatChip(
-                      label: 'Moto',
-                      value: '${_streakCount + 1}🔥',
-                      emoji: '',
+                      label: 'Gems',
+                      value: '+$_totalGems',
+                      emoji: '💎',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Streak info
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF9600).withAlpha(30),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_streakCount + 1} day streak!',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFFF9600),
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    context.pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    shape: RoundedRectangleBorder(
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        context.pop();
+                      },
+                      child: Container(
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primary.withAlpha(80),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            'CONTINUE',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2F3E),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text(
-                    'CONTINUE',
-                    style: GoogleFonts.nunitoSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 1.0,
+                    child: const Icon(
+                      Icons.share_rounded,
+                      color: Colors.white70,
+                      size: 22,
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -351,7 +446,6 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
           hasChecked: _hasChecked,
           onSelected: _onAnswerSelected,
         );
-
       case 'tap_the_word':
         return TapTheWordWidget(
           instruction: exercise['instruction'] as String,
@@ -359,11 +453,8 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
           wordBank: List<String>.from(exercise['word_bank'] as List),
           correctAnswer: exercise['correct_answer'] as String,
           hasChecked: _hasChecked,
-          onAnswerChanged: (answer) {
-            setState(() => _selectedAnswer = answer);
-          },
+          onAnswerChanged: (answer) => setState(() => _selectedAnswer = answer),
         );
-
       case 'listen_and_pick':
         return ListenAndPickWidget(
           audioText: exercise['audio_text'] as String,
@@ -375,8 +466,7 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
           hasChecked: _hasChecked,
           onSelected: _onAnswerSelected,
         );
-
-      default: // multiple_choice
+      default:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -417,7 +507,6 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
                 ),
                 child: Column(
                   children: [
-                    // Top bar
                     AnimatedBuilder(
                       animation: _shakeAnim,
                       builder: (context, child) {
@@ -445,8 +534,6 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
                             setState(() => _isSlangMode = !_isSlangMode),
                       ),
                     ),
-
-                    // Exercise type indicator pill
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                       child: _ExerciseTypePill(
@@ -454,16 +541,12 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
                         isSlang: exercise['is_slang'] as bool? ?? false,
                       ),
                     ),
-
-                    // Exercise content
                     Expanded(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                         child: _buildExerciseContent(exercise),
                       ),
                     ),
-
-                    // CHECK button
                     LessonCheckButtonWidget(
                       isEnabled: _isCheckEnabled,
                       onCheck: _onCheck,
@@ -473,7 +556,7 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
               ),
             ),
 
-            // Feedback drawer overlay
+            // Feedback drawer
             if (_showFeedback)
               LessonFeedbackDrawerWidget(
                 isCorrect: _isCorrect,
@@ -493,7 +576,197 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen>
                   if (mounted) setState(() => _showCelebration = false);
                 },
               ),
+
+            // XP counter pop animation
+            if (_isCorrect && _hasChecked)
+              _XpCounterPopWidget(
+                xp: exercise['xp_reward'] as int,
+                animation: _xpCounterAnim,
+              ),
+
+            // "You're on fire!" combo overlay
+            if (_showComboOverlay)
+              _ComboOverlayWidget(
+                comboCount: _comboCount,
+                scaleAnimation: _comboScale,
+              ),
+
+            // Surprise gem drop
+            if (_showGemDrop) _GemDropWidget(animation: _gemDropAnim),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// DOPAMINE MICRO-INTERACTION WIDGETS
+// ============================================================
+
+class _XpCounterPopWidget extends StatelessWidget {
+  final int xp;
+  final Animation<double> animation;
+
+  const _XpCounterPopWidget({required this.xp, required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 80,
+      right: 24,
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) => Transform.translate(
+          offset: Offset(0, -40 * animation.value),
+          child: Opacity(
+            opacity: animation.value < 0.8
+                ? animation.value / 0.8
+                : (1 - animation.value) / 0.2,
+            child: child,
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFB800),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFFB800).withAlpha(100),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Text(
+            '+$xp XP ⭐',
+            style: GoogleFonts.nunitoSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ComboOverlayWidget extends StatelessWidget {
+  final int comboCount;
+  final Animation<double> scaleAnimation;
+
+  const _ComboOverlayWidget({
+    required this.comboCount,
+    required this.scaleAnimation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Center(
+          child: AnimatedBuilder(
+            animation: scaleAnimation,
+            builder: (context, child) =>
+                Transform.scale(scale: scaleAnimation.value, child: child),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B00).withAlpha(230),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6B00).withAlpha(120),
+                    blurRadius: 30,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🔥🔥🔥', style: TextStyle(fontSize: 36)),
+                  const SizedBox(height: 8),
+                  Text(
+                    "You're on fire!",
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    '$comboCount correct in a row!',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GemDropWidget extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _GemDropWidget({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 120,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) => Opacity(
+            opacity: animation.value < 0.7 ? 1.0 : (1 - animation.value) / 0.3,
+            child: Transform.translate(
+              offset: Offset(0, 60 * animation.value),
+              child: child,
+            ),
+          ),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1CB0F6),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1CB0F6).withAlpha(100),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('💎', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Surprise! +5 Gems!',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -576,7 +849,7 @@ class _StatChip extends StatelessWidget {
           style: GoogleFonts.nunitoSans(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppTheme.zambiaBlack,
+            color: Colors.white,
           ),
         ),
         Text(
@@ -584,7 +857,7 @@ class _StatChip extends StatelessWidget {
           style: GoogleFonts.nunitoSans(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF6B6B6B),
+            color: Colors.white60,
           ),
         ),
       ],

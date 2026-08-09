@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
@@ -75,8 +77,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
-  void _completeOnboarding() {
-    context.go(AppRoutes.homeScreen);
+  void _completeOnboarding() async {
+    // Save the selected learning language
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('learning_language', _languageToLearn);
+    if (mounted) {
+      context.go(AppRoutes.homeScreen);
+    }
   }
 
   String _getStepLabel() {
@@ -216,23 +223,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     children: [
                       SizedBox(
                         width: double.infinity,
-                        height: 54,
+                        height: 56,
                         child: ElevatedButton(
                           onPressed: _nextStep,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primary,
                             foregroundColor: Colors.white,
-                            elevation: 0,
+                            elevation: 2,
+                            shadowColor: AppTheme.primary.withAlpha(80),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
                             ),
                           ),
                           child: Text(
                             _getButtonLabel(),
-                            style: const TextStyle(
-                              fontSize: 16,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 17,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ),

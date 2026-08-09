@@ -19,35 +19,43 @@ class LessonCheckButtonWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.backgroundLight,
         border: Border(
-          top: BorderSide(color: const Color(0xFFE0E0E0), width: 1),
+          top: BorderSide(color: const Color(0xFFE8E8E8), width: 1),
         ),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 54,
+      child: GestureDetector(
+        onTap: isEnabled ? onCheck : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          child: ElevatedButton(
-            onPressed: isEnabled ? onCheck : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isEnabled
-                  ? AppTheme.primary
-                  : const Color(0xFFE0E0E0),
-              foregroundColor: isEnabled
-                  ? Colors.white
-                  : const Color(0xFFAFAFAF),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: isEnabled
+                ? const LinearGradient(
+                    colors: [Color(0xFF58CC02), Color(0xFF2E8B00)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: isEnabled ? null : const Color(0xFFE8E8E8),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isEnabled
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primary.withAlpha(80),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
             child: Text(
               'CHECK',
-              style: GoogleFonts.nunitoSans(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: isEnabled ? Colors.white : const Color(0xFFAFAFAF),
+                letterSpacing: 1.5,
+                color: isEnabled ? Colors.white : const Color(0xFFBBBBBB),
               ),
             ),
           ),
