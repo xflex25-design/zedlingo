@@ -33,6 +33,10 @@ dev_dependencies:
   flutter_test:    # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
     sdk: flutter   # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
   flutter_lints: ^5.0.0 # CRITICAL: Required for code quality - DO NOT REMOVE
+  integration_test:
+    sdk: flutter
+  mocktail: ^1.0.3
+  network_image_mock: ^2.1.1
 
 flutter:
   uses-material-design: true # CRITICAL: Required for Material icon font - DO NOT REMOVE
