@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
+import '../../services/tts_service.dart';
 import './widgets/onboarding_account_widget.dart';
 import './widgets/onboarding_language_selection_widget.dart';
 import './widgets/onboarding_motivation_widget.dart';
@@ -44,6 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    TTSService().initialize();
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),

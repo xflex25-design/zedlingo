@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_theme.dart';
+import '../../../services/tts_service.dart';
 
 class OnboardingLanguageSelectionWidget extends StatelessWidget {
   final String title;
@@ -9,15 +10,14 @@ class OnboardingLanguageSelectionWidget extends StatelessWidget {
   final bool multiSelect;
   final ValueChanged<String> onChanged;
 
-  static const List<String> _languages = [
-    'Bemba',
-    'Nyanja',
-    'Lozi',
-    'Tonga',
-    'Lunda',
-    'Kaonde',
-    'Luvale',
-    'English',
+  static const List<Map<String, String>> _languages = [
+    {'name': 'Bemba', 'native': 'Ichibemba', 'greeting': 'Mwashibukeni', 'code': 'bemba'},
+    {'name': 'Nyanja', 'native': 'Chinyanja', 'greeting': 'Muli bwanji', 'code': 'nyanja'},
+    {'name': 'Tonga', 'native': 'Chitonga', 'greeting': 'Mwabuka biyani', 'code': 'tonga'},
+    {'name': 'Lozi', 'native': 'Silozi', 'greeting': 'Muli cwang\'i', 'code': 'lozi'},
+    {'name': 'Lunda', 'native': 'Chilunda', 'greeting': 'Eneyi hinyi', 'code': 'lunda'},
+    {'name': 'Kaonde', 'native': 'Chikaonde', 'greeting': 'Mwaji byepi', 'code': 'kaonde'},
+    {'name': 'Luvale', 'native': 'Chiluvale', 'greeting': 'Muno ngachili', 'code': 'luvale'},
   ];
 
   const OnboardingLanguageSelectionWidget({
@@ -53,10 +53,14 @@ class OnboardingLanguageSelectionWidget extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         ...List.generate(_languages.length, (index) {
-          final lang = _languages[index];
+          final langMap = _languages[index];
+          final lang = langMap['name']!;
           final isSelected = selectedLanguages.contains(lang);
           return _LanguageOptionTile(
             language: lang,
+            nativeName: langMap['native']!,
+            greeting: langMap['greeting']!,
+            languageCode: langMap['code']!,
             isSelected: isSelected,
             onTap: () => onChanged(lang),
             index: index,
@@ -70,12 +74,18 @@ class OnboardingLanguageSelectionWidget extends StatelessWidget {
 
 class _LanguageOptionTile extends StatefulWidget {
   final String language;
+  final String nativeName;
+  final String greeting;
+  final String languageCode;
   final bool isSelected;
   final VoidCallback onTap;
   final int index;
 
   const _LanguageOptionTile({
     required this.language,
+    required this.nativeName,
+    required this.greeting,
+    required this.languageCode,
     required this.isSelected,
     required this.onTap,
     required this.index,
@@ -156,19 +166,46 @@ class _LanguageOptionTileState extends State<_LanguageOptionTile>
                       : null,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  widget.language,
-                  style: GoogleFonts.nunitoSans(
-                    fontSize: 16,
-                    fontWeight: widget.isSelected
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                    color: widget.isSelected
-                        ? AppTheme.primaryDark
-                        : AppTheme.zambiaBlack,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.language,
+                        style: GoogleFonts.nunitoSans(
+                          fontSize: 15,
+                          fontWeight: widget.isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: widget.isSelected
+                              ? AppTheme.primaryDark
+                              : AppTheme.zambiaBlack,
+                        ),
+                      ),
+                      Text(
+                        '${widget.nativeName} • "${widget.greeting}"',
+                        style: GoogleFonts.nunitoSans(
+                          fontSize: 11,
+                          color: const Color(0xFF888888),
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
+                IconButton(
+                  onPressed: () {
+                    TTSService().speak(widget.greeting, languageCode: widget.languageCode);
+                  },
+                  icon: Icon(
+                    Icons.volume_up_rounded,
+                    color: widget.isSelected ? AppTheme.primary : const Color(0xFF888888),
+                    size: 20,
+                  ),
+                  tooltip: 'Listen to greeting',
+                ),
                 if (widget.isSelected)
                   const Icon(
                     Icons.check_circle_rounded,

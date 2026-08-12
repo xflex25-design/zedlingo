@@ -4,4 +4,8 @@ export 'package:go_router/go_router.dart';
 export '../routes/app_routes.dart';
 export '../widgets/custom_icon_widget.dart';
 export '../widgets/custom_image_widget.dart';
+export '../widgets/zambian_eagle_mascot.dart';
+export '../widgets/scenario_illustration.dart';
 export '../theme/app_theme.dart';
+export '../services/supabase_service.dart';
+export '../services/tts_service.dart';

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../services/zambian_language_data.dart';
+import '../../services/tts_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _loadSelectedLanguage();
+    TTSService().initialize();
 
     _streakPulseController = AnimationController(
       vsync: this,
@@ -148,6 +150,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 _buildDailyGoalCard(),
                 _buildContinueLearningSection(),
                 _buildZambianLifeSection(),
+                _buildFeaturedModesSection(),
                 _buildSlangOfTheDayCard(),
                 _buildMiniLeaderboard(),
                 _buildLanguageInfoCard(),
@@ -945,6 +948,122 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 },
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeaturedModesSection() {
+    final modes = [
+      {
+        'title': 'Real Zambia',
+        'subtitle': 'Minibus, Market, Clinic...',
+        'emoji': '🇿🇲',
+        'color': AppTheme.primary,
+        'route': AppRoutes.realZambiaScreen,
+      },
+      {
+        'title': 'Stories',
+        'subtitle': 'Learn through tales',
+        'emoji': '📖',
+        'color': AppTheme.secondary,
+        'route': AppRoutes.zambiaStoriesScreen,
+      },
+      {
+        'title': 'Talk to Zambia',
+        'subtitle': 'AI conversation practice',
+        'emoji': '🎤',
+        'color': AppTheme.gemBlue,
+        'route': AppRoutes.conversationModeScreen,
+      },
+      {
+        'title': 'Know Zambia',
+        'subtitle': 'Culture & customs',
+        'emoji': '🏛️',
+        'color': AppTheme.zambiaRed,
+        'route': AppRoutes.knowZambiaScreen,
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 18, 12, 10),
+          child: Text(
+            'Explore More',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.zambiaBlack,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.5,
+            ),
+            itemCount: modes.length,
+            itemBuilder: (context, index) {
+              final mode = modes[index];
+              return _BounceButton(
+                onTap: () => context.push(mode['route'] as String),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        (mode['color'] as Color).withAlpha(30),
+                        (mode['color'] as Color).withAlpha(15),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: (mode['color'] as Color).withAlpha(50),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        mode['emoji'] as String,
+                        style: const TextStyle(fontSize: 28),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        mode['title'] as String,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.zambiaBlack,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        mode['subtitle'] as String,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          color: const Color(0xFF666666),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],

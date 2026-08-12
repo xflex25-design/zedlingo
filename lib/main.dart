@@ -1,37 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'dart:io';
 
 import '../core/app_export.dart';
 import '../widgets/custom_error_widget.dart';
+import '../services/supabase_service.dart';
+import '../services/tts_service.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   bool hasShownError = false;
 
-  // 🚨 CRITICAL: Custom error handling - DO NOT REMOVE
   ErrorWidget.builder = (FlutterErrorDetails details) {
     if (!hasShownError) {
       hasShownError = true;
-
-      // Reset flag after 3 seconds to allow error widget on new screens
-      Future.delayed(Duration(seconds: 5), () {
+      Future.delayed(const Duration(seconds: 5), () {
         hasShownError = false;
       });
-
       return CustomErrorWidget(errorDetails: details);
     }
     return SizedBox.shrink();
   };
 
-  // 🚨 CRITICAL: Device orientation lock - DO NOT REMOVE
-  Future.wait([
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]),
-  ]).then((value) {
-    GoRouter.optionURLReflectsImperativeAPIs = true;
-    runApp(MyApp());
-  });
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Initialize Supabase
+  try {
+    final envFile = File('env.json');
+    if (await envFile.exists()) {
+      final jsonString = await envFile.readAsString();
+      final env = jsonDecode(jsonString) as Map<String, dynamic>;
+      final supabaseUrl = env['SUPABASE_URL'] as String?;
+      final supabaseAnonKey = env['SUPABASE_ANON_KEY'] as String?;
+
+      if (supabaseUrl != null && supabaseUrl.isNotEmpty && supabaseAnonKey != null && supabaseAnonKey.isNotEmpty) {
+        await Supabase.initialize(
+          url: supabaseUrl,
+          anonKey: supabaseAnonKey,
+        );
+        await SupabaseService().initialize();
+      }
+    }
+  } catch (e) {
+    debugPrint('Supabase initialization error: $e');
+  }
+
+  GoRouter.optionURLReflectsImperativeAPIs = true;
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
